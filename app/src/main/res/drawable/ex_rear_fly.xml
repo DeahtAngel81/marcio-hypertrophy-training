@@ -1,0 +1,69 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="150dp"
+    android:viewportWidth="400"
+    android:viewportHeight="300">
+
+    <!-- Dark Background Card -->
+    <path
+        android:fillColor="#1B1B22"
+        android:pathData="M0,0h400v300h-400z"/>
+
+    <!-- Torso / Spine (Bent-over posture ~45 degrees) -->
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="10"
+        android:strokeLineCap="round"
+        android:pathData="M160,190 L230,130"/>
+
+    <!-- Head -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M 245,115 A 14,14 0 1,1 245,114.9 Z"/>
+
+    <!-- Hip / Legs -->
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="10"
+        android:strokeLineCap="round"
+        android:pathData="M160,190 L150,240 L190,240"/>
+
+    <!-- Left Arm & Dumbbell (Abducted laterally / Reverse Fly motion) -->
+    <path
+        android:strokeColor="#FF6D00"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M210,145 L130,95 M130,95 L110,80"/>
+    <!-- Left Dumbbell -->
+    <path
+        android:fillColor="#FF6D00"
+        android:pathData="M102,72 h16 v16 h-16 z"/>
+
+    <!-- Right Arm & Dumbbell (Abducted laterally / Reverse Fly motion) -->
+    <path
+        android:strokeColor="#FF6D00"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M210,145 L290,95 M290,95 L310,80"/>
+    <!-- Right Dumbbell -->
+    <path
+        android:fillColor="#FF6D00"
+        android:pathData="M302,72 h16 v16 h-16 z"/>
+
+    <!-- Highlighted Deltoid Posterior Muscle Focus Lines -->
+    <path
+        android:strokeColor="#00E676"
+        android:strokeWidth="4"
+        android:pathData="M170,120 L130,95 M250,120 L290,95"/>
+
+    <!-- Motion Arrows indicating lateral arc movement -->
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="3"
+        android:pathData="M150,135 C 130,120 120,105 115,90"/>
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="3"
+        android:pathData="M270,135 C 290,120 300,105 305,90"/>
+
+</vector>
