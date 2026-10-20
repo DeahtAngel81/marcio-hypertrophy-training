@@ -105,11 +105,12 @@ data class MainScreenState(
     val isTimerRunning: Boolean = false,
 
     // Weight and Height Tracking
-    val userWeightInput: String = "75.0",
+    val userWeightInput: String = " ",
     val userSecondWeightInput: String = "",
-    val userHeightInput: String = "175",
+    val userHeightInput: String = " ",
     val userEntryDateInput: String = getCurrentDateString(),
     val userTargetDateInput: String = getFutureDateString(5),
+    val isInitialLocked: Boolean = false,
     val weightRecords: List<WeightRecord> = emptyList(),
 ) {
     val currentPhase: WorkoutPhase
@@ -228,7 +229,9 @@ class MainScreenViewModel : ViewModel() {
 
     // Weight and Height tracking actions
     fun updateWeightInput(weight: String) {
-        _state.update { it.copy(userWeightInput = weight) }
+        if (!_state.value.isInitialLocked) {
+            _state.update { it.copy(userWeightInput = weight) }
+        }
     }
 
     fun updateSecondWeightInput(weight: String) {
@@ -236,15 +239,23 @@ class MainScreenViewModel : ViewModel() {
     }
 
     fun updateHeightInput(height: String) {
-        _state.update { it.copy(userHeightInput = height) }
+        if (!_state.value.isInitialLocked) {
+            _state.update { it.copy(userHeightInput = height) }
+        }
     }
 
     fun updateEntryDateInput(date: String) {
-        _state.update { it.copy(userEntryDateInput = date) }
+        if (!_state.value.isInitialLocked) {
+            _state.update { it.copy(userEntryDateInput = date) }
+        }
     }
 
     fun updateTargetDateInput(date: String) {
         _state.update { it.copy(userTargetDateInput = date) }
+    }
+
+    fun unlockInitialInputs() {
+        _state.update { it.copy(isInitialLocked = false) }
     }
 
     fun saveWeightRecord() {
@@ -268,13 +279,24 @@ class MainScreenViewModel : ViewModel() {
         )
 
         _state.update {
-            it.copy(weightRecords = listOf(newRecord) + it.weightRecords)
+            val updatedRecords = listOf(newRecord) + it.weightRecords
+            // Lock initial inputs until second date comparison is completed
+            val shouldLock = validSecondWeight == null
+            it.copy(
+                weightRecords = updatedRecords,
+                isInitialLocked = shouldLock,
+            )
         }
     }
 
     fun deleteWeightRecord(recordId: String) {
         _state.update {
-            it.copy(weightRecords = it.weightRecords.filterNot { rec -> rec.id == recordId })
+            val updatedList = it.weightRecords.filterNot { rec -> rec.id == recordId }
+            val hasPendingLockedRecord = updatedList.any { rec -> rec.secondWeightKg == null }
+            it.copy(
+                weightRecords = updatedList,
+                isInitialLocked = hasPendingLockedRecord,
+            )
         }
     }
 

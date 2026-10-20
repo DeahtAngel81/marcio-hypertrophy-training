@@ -95,6 +95,7 @@ fun MainScreen(
                         onUpdateHeight = { viewModel.updateHeightInput(it) },
                         onUpdateEntryDate = { viewModel.updateEntryDateInput(it) },
                         onUpdateTargetDate = { viewModel.updateTargetDateInput(it) },
+                        onUnlockInitialInputs = { viewModel.unlockInitialInputs() },
                         onSaveWeightRecord = { viewModel.saveWeightRecord() },
                         onDeleteWeightRecord = { viewModel.deleteWeightRecord(it) },
                     )
@@ -132,6 +133,7 @@ fun DashboardScreen(
     onUpdateHeight: (String) -> Unit,
     onUpdateEntryDate: (String) -> Unit,
     onUpdateTargetDate: (String) -> Unit,
+    onUnlockInitialInputs: () -> Unit,
     onSaveWeightRecord: () -> Unit,
     onDeleteWeightRecord: (String) -> Unit,
 ) {
@@ -171,6 +173,7 @@ fun DashboardScreen(
             onUpdateHeight = onUpdateHeight,
             onUpdateEntryDate = onUpdateEntryDate,
             onUpdateTargetDate = onUpdateTargetDate,
+            onUnlockInitialInputs = onUnlockInitialInputs,
             onSaveWeightRecord = onSaveWeightRecord,
             onDeleteWeightRecord = onDeleteWeightRecord,
         )
@@ -382,6 +385,7 @@ fun WeightTrackerSection(
     onUpdateHeight: (String) -> Unit,
     onUpdateEntryDate: (String) -> Unit,
     onUpdateTargetDate: (String) -> Unit,
+    onUnlockInitialInputs: () -> Unit,
     onSaveWeightRecord: () -> Unit,
     onDeleteWeightRecord: (String) -> Unit,
 ) {
@@ -424,11 +428,15 @@ fun WeightTrackerSection(
                 OutlinedTextField(
                     value = state.userWeightInput,
                     onValueChange = onUpdateWeight,
+                    enabled = !state.isInitialLocked,
                     label = { Text("Peso Inicial (kg)", fontSize = 11.sp, color = ThemeTextSecondary) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = ThemeTextPrimary,
                         unfocusedTextColor = ThemeTextPrimary,
+                        disabledTextColor = ThemeTextSecondary.copy(alpha = 0.8f),
+                        disabledBorderColor = ThemeSurfaceVariant,
+                        disabledContainerColor = ThemeSurfaceVariant.copy(alpha = 0.4f),
                         focusedBorderColor = ThemePrimary,
                         unfocusedBorderColor = ThemeSurfaceVariant,
                         focusedContainerColor = ThemeSurfaceVariant,
@@ -441,11 +449,15 @@ fun WeightTrackerSection(
                 OutlinedTextField(
                     value = state.userHeightInput,
                     onValueChange = onUpdateHeight,
+                    enabled = !state.isInitialLocked,
                     label = { Text("Altura (cm)", fontSize = 11.sp, color = ThemeTextSecondary) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = ThemeTextPrimary,
                         unfocusedTextColor = ThemeTextPrimary,
+                        disabledTextColor = ThemeTextSecondary.copy(alpha = 0.8f),
+                        disabledBorderColor = ThemeSurfaceVariant,
+                        disabledContainerColor = ThemeSurfaceVariant.copy(alpha = 0.4f),
                         focusedBorderColor = ThemePrimary,
                         unfocusedBorderColor = ThemeSurfaceVariant,
                         focusedContainerColor = ThemeSurfaceVariant,
@@ -466,11 +478,15 @@ fun WeightTrackerSection(
                 OutlinedTextField(
                     value = state.userEntryDateInput,
                     onValueChange = onUpdateEntryDate,
+                    enabled = !state.isInitialLocked,
                     label = { Text("Data Atual", fontSize = 11.sp, color = ThemeTextSecondary) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = ThemeTextPrimary,
                         unfocusedTextColor = ThemeTextPrimary,
+                        disabledTextColor = ThemeTextSecondary.copy(alpha = 0.8f),
+                        disabledBorderColor = ThemeSurfaceVariant,
+                        disabledContainerColor = ThemeSurfaceVariant.copy(alpha = 0.4f),
                         focusedBorderColor = ThemePrimary,
                         unfocusedBorderColor = ThemeSurfaceVariant,
                         focusedContainerColor = ThemeSurfaceVariant,
@@ -666,6 +682,48 @@ fun WeightTrackerSection(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Lock Indicator Banner when Initial Weight/Height are saved
+            if (state.isInitialLocked) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 10.dp)
+                        .background(ThemePrimary.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
+                        .border(1.dp, ThemePrimary.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                        .padding(10.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "🔒 Dados Iniciais Salvos e Fixados",
+                                color = ThemePrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                            )
+                            Text(
+                                text = "Permanecerão inalterados até a 2ª data (${state.userTargetDateInput}).",
+                                color = ThemeTextSecondary,
+                                fontSize = 10.sp,
+                            )
+                        }
+
+                        Text(
+                            text = "Desbloquear",
+                            color = ThemeSecondary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            modifier = Modifier
+                                .clickable { onUnlockInitialInputs() }
+                                .padding(horizontal = 6.dp, vertical = 4.dp),
+                        )
+                    }
+                }
+            }
+
             // Progress / Regression Detailed Indicator Box
             if (hasSecondWeight) {
                 Box(
@@ -749,6 +807,7 @@ fun WeightTrackerSection(
 
                     Button(
                         onClick = onSaveWeightRecord,
+                        enabled = !state.isInitialLocked,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = ThemePrimary,
                             contentColor = Color.Black,
@@ -756,7 +815,7 @@ fun WeightTrackerSection(
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     ) {
-                        Text("Salvar Registro", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        Text(if (state.isInitialLocked) "Dados Salvos 🔒" else "Salvar Registro", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                     }
                 }
             }
