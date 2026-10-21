@@ -29,6 +29,13 @@ sealed interface Screen {
     data class ExerciseDetail(val exerciseId: String, val dayNumber: Int) : Screen
 }
 
+val defaultCompletedExerciseIds: Set<String> = setOf(
+    // Phase 1, Day 1
+    "p1_d1_warmup", "p1_d1_ex1", "p1_d1_ex2", "p1_d1_ex3", "p1_d1_ex4", "p1_d1_cardio",
+    // Phase 1, Day 2
+    "p1_d2_warmup", "p1_d2_ex1", "p1_d2_ex2", "p1_d2_ex3", "p1_d2_ex4", "p1_d2_cardio",
+)
+
 data class WeightRecord(
     val id: String = UUID.randomUUID().toString(),
     val weightKg: Float,
@@ -100,6 +107,13 @@ fun getDaysBetween(d1: String, d2: String): Long? {
     return diffMillis / (1000 * 60 * 60 * 24)
 }
 
+fun serializeSet(set: Set<String>): String = set.joinToString(",")
+
+fun deserializeSet(str: String, defaultSet: Set<String>): Set<String> {
+    if (str.isBlank()) return defaultSet
+    return str.split(",").filter { it.isNotBlank() }.toSet()
+}
+
 fun serializeRecords(records: List<WeightRecord>): String {
     val array = JSONArray()
     for (rec in records) {
@@ -151,16 +165,16 @@ data class MainScreenState(
     val phases: List<WorkoutPhase> = WorkoutData.getPhases(),
     val currentPhaseIndex: Int = 0,
     val selectedDayNumber: Int = 1,
-    val completedExerciseIds: Set<String> = emptySet(),
+    val completedExerciseIds: Set<String> = defaultCompletedExerciseIds,
     val currentScreen: Screen = Screen.Dashboard,
     val activeTimerExerciseId: String? = null,
     val timerRemainingSeconds: Int = 0,
     val isTimerRunning: Boolean = false,
 
     // Weight and Height Tracking
-    val userWeightInput: String = " ",
+    val userWeightInput: String = "75.0",
     val userSecondWeightInput: String = "",
-    val userHeightInput: String = " ",
+    val userHeightInput: String = "175",
     val userEntryDateInput: String = getCurrentDateString(),
     val userTargetDateInput: String = getFutureDateString(5),
     val isInitialLocked: Boolean = false,
@@ -192,14 +206,17 @@ class MainScreenViewModel @JvmOverloads constructor(
     private var timerJob: Job? = null
 
     private fun loadInitialState(): MainScreenState {
-        val savedWeight = prefs?.getString("userWeightInput", " ") ?: " "
+        val savedWeight = prefs?.getString("userWeightInput", "75.0") ?: "75.0"
         val savedSecondWeight = prefs?.getString("userSecondWeightInput", "") ?: ""
-        val savedHeight = prefs?.getString("userHeightInput", " ") ?: " "
+        val savedHeight = prefs?.getString("userHeightInput", "175") ?: "175"
         val savedEntryDate = prefs?.getString("userEntryDateInput", getCurrentDateString()) ?: getCurrentDateString()
         val savedTargetDate = prefs?.getString("userTargetDateInput", getFutureDateString(5)) ?: getFutureDateString(5)
         val savedIsLocked = prefs?.getBoolean("isInitialLocked", false) ?: false
         val savedRecordsJson = prefs?.getString("weightRecordsJson", "") ?: ""
         val savedRecords = deserializeRecords(savedRecordsJson)
+
+        val savedCompletedJson = prefs?.getString("completedExerciseIds", null)
+        val savedCompleted = if (savedCompletedJson != null) deserializeSet(savedCompletedJson, defaultCompletedExerciseIds) else defaultCompletedExerciseIds
 
         return MainScreenState(
             userWeightInput = savedWeight,
@@ -209,6 +226,7 @@ class MainScreenViewModel @JvmOverloads constructor(
             userTargetDateInput = savedTargetDate,
             isInitialLocked = savedIsLocked,
             weightRecords = savedRecords,
+            completedExerciseIds = savedCompleted,
         )
     }
 
@@ -221,6 +239,7 @@ class MainScreenViewModel @JvmOverloads constructor(
             putString("userTargetDateInput", currentState.userTargetDateInput)
             putBoolean("isInitialLocked", currentState.isInitialLocked)
             putString("weightRecordsJson", serializeRecords(currentState.weightRecords))
+            putString("completedExerciseIds", serializeSet(currentState.completedExerciseIds))
         }
     }
 
@@ -230,7 +249,6 @@ class MainScreenViewModel @JvmOverloads constructor(
                 it.copy(
                     currentPhaseIndex = index,
                     selectedDayNumber = 1,
-                    completedExerciseIds = emptySet(),
                     currentScreen = Screen.Dashboard,
                 )
             }
@@ -255,7 +273,9 @@ class MainScreenViewModel @JvmOverloads constructor(
             } else {
                 currentCompleted + exerciseId
             }
-            it.copy(completedExerciseIds = newCompleted)
+            val newState = it.copy(completedExerciseIds = newCompleted)
+            savePreferences(newState)
+            newState
         }
     }
 

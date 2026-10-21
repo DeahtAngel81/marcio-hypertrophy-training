@@ -41,6 +41,9 @@ val ThemeSecondary = Color(0xFFFF6D00)     // Orange Neon
 val ThemeTextPrimary = Color(0xFFFFFFFF)
 val ThemeTextSecondary = Color(0xFFA0A0AB)
 val ThemeSuccess = Color(0xFF00E676)
+val ThemeDarkMagenta = Color(0xFF8B008B)
+val ThemeDarkMagentaSurface = Color(0xFF2E0A2E)
+val ThemeDarkMagentaText = Color(0xFFFF80FF)
 
 fun getExerciseDrawableRes(name: String): Int = when (name) {
     "ex_bench_press" -> R.drawable.ex_bench_press
@@ -284,14 +287,20 @@ fun DashboardScreen(
             val isLower = day.focusName.contains("inferiores", ignoreCase = true)
             val dayFinished = day.exercises.all { state.completedExerciseIds.contains(it.id) }
 
+            val cardBackground = if (dayFinished) ThemeDarkMagentaSurface else ThemeSurface
+            val cardBorder = if (dayFinished) ThemeDarkMagenta else ThemeSurfaceVariant
+            val circleBackground = if (dayFinished) ThemeDarkMagenta.copy(alpha = 0.35f) else if (isLower) ThemeSecondary.copy(alpha = 0.15f) else ThemePrimary.copy(alpha = 0.15f)
+            val circleBorder = if (dayFinished) ThemeDarkMagenta else if (isLower) ThemeSecondary else ThemePrimary
+            val circleTextColor = if (dayFinished) ThemeDarkMagentaText else if (isLower) ThemeSecondary else ThemePrimary
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 12.dp)
-                    .background(ThemeSurface, RoundedCornerShape(16.dp))
+                    .background(cardBackground, RoundedCornerShape(16.dp))
                     .border(
-                        1.dp,
-                        if (dayFinished) ThemeSuccess.copy(alpha = 0.5f) else ThemeSurfaceVariant,
+                        1.5.dp,
+                        cardBorder,
                         RoundedCornerShape(16.dp),
                     )
                     .clickable { onSelectDay(day.dayNumber) }
@@ -306,19 +315,19 @@ fun DashboardScreen(
                         modifier = Modifier
                             .size(44.dp)
                             .background(
-                                if (isLower) ThemeSecondary.copy(alpha = 0.15f) else ThemePrimary.copy(alpha = 0.15f),
+                                circleBackground,
                                 CircleShape,
                             )
                             .border(
-                                1.dp,
-                                if (isLower) ThemeSecondary else ThemePrimary,
+                                1.5.dp,
+                                circleBorder,
                                 CircleShape,
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = day.dayNumber.toString(),
-                            color = if (isLower) ThemeSecondary else ThemePrimary,
+                            color = circleTextColor,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
                         )
@@ -339,11 +348,12 @@ fun DashboardScreen(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "Concluído",
-                                    color = ThemeSuccess,
+                                    color = ThemeDarkMagentaText,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier
-                                        .background(ThemeSuccess.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                                        .background(ThemeDarkMagenta.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                                        .border(1.dp, ThemeDarkMagenta, RoundedCornerShape(4.dp))
                                         .padding(horizontal = 6.dp, vertical = 2.dp),
                                 )
                             }
@@ -351,7 +361,7 @@ fun DashboardScreen(
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = day.focusName,
-                            color = ThemeTextSecondary,
+                            color = if (dayFinished) Color.White.copy(alpha = 0.85f) else ThemeTextSecondary,
                             fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -362,12 +372,12 @@ fun DashboardScreen(
                     Box(
                         modifier = Modifier
                             .size(32.dp)
-                            .background(ThemeSurfaceVariant, CircleShape),
+                            .background(if (dayFinished) ThemeDarkMagenta.copy(alpha = 0.4f) else ThemeSurfaceVariant, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = "➔",
-                            color = ThemePrimary,
+                            color = if (dayFinished) ThemeDarkMagentaText else ThemePrimary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                         )
