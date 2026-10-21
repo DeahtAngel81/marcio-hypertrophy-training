@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -271,7 +272,7 @@ fun DashboardScreen(
 
         // Weekly View Header
         Text(
-            text = "Selecione o Dia para Treinar (Intercalado M.S. e M.I.)",
+            text = "Aqui está seu treino:",
             color = ThemeTextPrimary,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
@@ -1429,5 +1430,118 @@ fun ExerciseDetailScreen(
             }
             Spacer(modifier = Modifier.height(30.dp))
         }
+    }
+}
+
+// ==========================================
+// Compose Previews
+// ==========================================
+
+@Preview(showBackground = true, backgroundColor = 0xFF0F0F12)
+@Composable
+fun MainScreenPreview() {
+    MainScreen()
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0F0F12)
+@Composable
+fun DashboardScreenPreview() {
+    MaterialTheme(
+        colorScheme = darkColorScheme(
+            background = ThemeBackground,
+            surface = ThemeSurface,
+            primary = ThemePrimary,
+            secondary = ThemeSecondary,
+        ),
+    ) {
+        DashboardScreen(
+            state = MainScreenState(),
+            onSelectPhase = {},
+            onSelectDay = {},
+            onUpdateWeight = {},
+            onUpdateSecondWeight = {},
+            onUpdateHeight = {},
+            onUpdateEntryDate = {},
+            onUpdateTargetDate = {},
+            onUnlockInitialInputs = {},
+            onSaveWeightRecord = {},
+            onDeleteWeightRecord = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0F0F12)
+@Composable
+fun WeightTrackerSectionPreview() {
+    MaterialTheme(
+        colorScheme = darkColorScheme(
+            background = ThemeBackground,
+            surface = ThemeSurface,
+            primary = ThemePrimary,
+            secondary = ThemeSecondary,
+        ),
+    ) {
+        WeightTrackerSection(
+            state = MainScreenState(
+                userWeightInput = "75.0",
+                userSecondWeightInput = "72.5",
+                userHeightInput = "175",
+                userEntryDateInput = "13/10/2026",
+                userTargetDateInput = "13/10/2026",
+            ),
+            onUpdateWeight = {},
+            onUpdateSecondWeight = {},
+            onUpdateHeight = {},
+            onUpdateEntryDate = {},
+            onUpdateTargetDate = {},
+            onUnlockInitialInputs = {},
+            onSaveWeightRecord = {},
+            onDeleteWeightRecord = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0F0F12)
+@Composable
+fun WorkoutScreenPreview() {
+    MaterialTheme(
+        colorScheme = darkColorScheme(
+            background = ThemeBackground,
+            surface = ThemeSurface,
+            primary = ThemePrimary,
+            secondary = ThemeSecondary,
+        ),
+    ) {
+        WorkoutScreen(
+            state = MainScreenState(selectedDayNumber = 1),
+            onBack = {},
+            onToggleExercise = {},
+            onViewDetail = {},
+            onStartTimer = { _, _ -> },
+            onToggleTimer = {},
+            onStopTimer = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0F0F12)
+@Composable
+fun ExerciseDetailScreenPreview() {
+    val sampleState = MainScreenState(selectedDayNumber = 1)
+    val exerciseId = sampleState.currentDay.exercises.firstOrNull()?.id ?: "p1_d1_ex1"
+
+    MaterialTheme(
+        colorScheme = darkColorScheme(
+            background = ThemeBackground,
+            surface = ThemeSurface,
+            primary = ThemePrimary,
+            secondary = ThemeSecondary,
+        ),
+    ) {
+        ExerciseDetailScreen(
+            state = sampleState,
+            exerciseId = exerciseId,
+            onBack = {},
+        )
     }
 }

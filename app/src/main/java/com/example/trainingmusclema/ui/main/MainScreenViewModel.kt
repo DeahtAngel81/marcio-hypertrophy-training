@@ -1,6 +1,10 @@
 package com.example.trainingmusclema.ui.main
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.core.content.edit
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.trainingmusclema.data.WorkoutData
 import com.example.trainingmusclema.data.WorkoutPhase
@@ -11,6 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.GregorianCalendar
@@ -94,6 +100,53 @@ fun getDaysBetween(d1: String, d2: String): Long? {
     return diffMillis / (1000 * 60 * 60 * 24)
 }
 
+fun serializeRecords(records: List<WeightRecord>): String {
+    val array = JSONArray()
+    for (rec in records) {
+        val obj = JSONObject()
+        obj.put("id", rec.id)
+        obj.put("weightKg", rec.weightKg.toDouble())
+        rec.secondWeightKg?.let { obj.put("secondWeightKg", it.toDouble()) }
+        obj.put("heightCm", rec.heightCm.toDouble())
+        obj.put("date", rec.date)
+        obj.put("secondDate", rec.secondDate)
+        array.put(obj)
+    }
+    return array.toString()
+}
+
+fun deserializeRecords(jsonStr: String): List<WeightRecord> {
+    if (jsonStr.isBlank()) return emptyList()
+    return try {
+        val list = mutableListOf<WeightRecord>()
+        val array = JSONArray(jsonStr)
+        for (i in 0 until array.length()) {
+            val obj = array.getJSONObject(i)
+            val id = obj.optString("id", UUID.randomUUID().toString())
+            val weightKg = obj.optDouble("weightKg", 0.0).toFloat()
+            val secondWeightKg = if (obj.has("secondWeightKg") && !obj.isNull("secondWeightKg")) {
+                obj.optDouble("secondWeightKg", 0.0).toFloat()
+            } else null
+            val heightCm = obj.optDouble("heightCm", 0.0).toFloat()
+            val date = obj.optString("date", getCurrentDateString())
+            val secondDate = obj.optString("secondDate", getFutureDateString(5))
+            list.add(
+                WeightRecord(
+                    id = id,
+                    weightKg = weightKg,
+                    secondWeightKg = secondWeightKg,
+                    heightCm = heightCm,
+                    date = date,
+                    secondDate = secondDate,
+                ),
+            )
+        }
+        list
+    } catch (_: Exception) {
+        emptyList()
+    }
+}
+
 data class MainScreenState(
     val phases: List<WorkoutPhase> = WorkoutData.getPhases(),
     val currentPhaseIndex: Int = 0,
@@ -120,11 +173,56 @@ data class MainScreenState(
         get() = currentPhase.days.firstOrNull { it.dayNumber == selectedDayNumber } ?: currentPhase.days.first()
 }
 
-class MainScreenViewModel : ViewModel() {
-    private val _state = MutableStateFlow(MainScreenState())
+class MainScreenViewModel @JvmOverloads constructor(
+    application: Application = Application(),
+    private val preferences: SharedPreferences? = null,
+) : AndroidViewModel(application) {
+
+    private val prefs: SharedPreferences? by lazy {
+        preferences ?: try {
+            application.getSharedPreferences("training_muscle_prefs", Context.MODE_PRIVATE)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private val _state = MutableStateFlow(loadInitialState())
     val state: StateFlow<MainScreenState> = _state.asStateFlow()
 
     private var timerJob: Job? = null
+
+    private fun loadInitialState(): MainScreenState {
+        val savedWeight = prefs?.getString("userWeightInput", " ") ?: " "
+        val savedSecondWeight = prefs?.getString("userSecondWeightInput", "") ?: ""
+        val savedHeight = prefs?.getString("userHeightInput", " ") ?: " "
+        val savedEntryDate = prefs?.getString("userEntryDateInput", getCurrentDateString()) ?: getCurrentDateString()
+        val savedTargetDate = prefs?.getString("userTargetDateInput", getFutureDateString(5)) ?: getFutureDateString(5)
+        val savedIsLocked = prefs?.getBoolean("isInitialLocked", false) ?: false
+        val savedRecordsJson = prefs?.getString("weightRecordsJson", "") ?: ""
+        val savedRecords = deserializeRecords(savedRecordsJson)
+
+        return MainScreenState(
+            userWeightInput = savedWeight,
+            userSecondWeightInput = savedSecondWeight,
+            userHeightInput = savedHeight,
+            userEntryDateInput = savedEntryDate,
+            userTargetDateInput = savedTargetDate,
+            isInitialLocked = savedIsLocked,
+            weightRecords = savedRecords,
+        )
+    }
+
+    private fun savePreferences(currentState: MainScreenState) {
+        prefs?.edit {
+            putString("userWeightInput", currentState.userWeightInput)
+            putString("userSecondWeightInput", currentState.userSecondWeightInput)
+            putString("userHeightInput", currentState.userHeightInput)
+            putString("userEntryDateInput", currentState.userEntryDateInput)
+            putString("userTargetDateInput", currentState.userTargetDateInput)
+            putBoolean("isInitialLocked", currentState.isInitialLocked)
+            putString("weightRecordsJson", serializeRecords(currentState.weightRecords))
+        }
+    }
 
     fun selectPhase(index: Int) {
         if (index in _state.value.phases.indices) {
@@ -230,32 +328,56 @@ class MainScreenViewModel : ViewModel() {
     // Weight and Height tracking actions
     fun updateWeightInput(weight: String) {
         if (!_state.value.isInitialLocked) {
-            _state.update { it.copy(userWeightInput = weight) }
+            _state.update {
+                val newState = it.copy(userWeightInput = weight)
+                savePreferences(newState)
+                newState
+            }
         }
     }
 
     fun updateSecondWeightInput(weight: String) {
-        _state.update { it.copy(userSecondWeightInput = weight) }
+        _state.update {
+            val newState = it.copy(userSecondWeightInput = weight)
+            savePreferences(newState)
+            newState
+        }
     }
 
     fun updateHeightInput(height: String) {
         if (!_state.value.isInitialLocked) {
-            _state.update { it.copy(userHeightInput = height) }
+            _state.update {
+                val newState = it.copy(userHeightInput = height)
+                savePreferences(newState)
+                newState
+            }
         }
     }
 
     fun updateEntryDateInput(date: String) {
         if (!_state.value.isInitialLocked) {
-            _state.update { it.copy(userEntryDateInput = date) }
+            _state.update {
+                val newState = it.copy(userEntryDateInput = date)
+                savePreferences(newState)
+                newState
+            }
         }
     }
 
     fun updateTargetDateInput(date: String) {
-        _state.update { it.copy(userTargetDateInput = date) }
+        _state.update {
+            val newState = it.copy(userTargetDateInput = date)
+            savePreferences(newState)
+            newState
+        }
     }
 
     fun unlockInitialInputs() {
-        _state.update { it.copy(isInitialLocked = false) }
+        _state.update {
+            val newState = it.copy(isInitialLocked = false)
+            savePreferences(newState)
+            newState
+        }
     }
 
     fun saveWeightRecord() {
@@ -280,12 +402,13 @@ class MainScreenViewModel : ViewModel() {
 
         _state.update {
             val updatedRecords = listOf(newRecord) + it.weightRecords
-            // Lock initial inputs until second date comparison is completed
             val shouldLock = validSecondWeight == null
-            it.copy(
+            val newState = it.copy(
                 weightRecords = updatedRecords,
                 isInitialLocked = shouldLock,
             )
+            savePreferences(newState)
+            newState
         }
     }
 
@@ -293,10 +416,12 @@ class MainScreenViewModel : ViewModel() {
         _state.update {
             val updatedList = it.weightRecords.filterNot { rec -> rec.id == recordId }
             val hasPendingLockedRecord = updatedList.any { rec -> rec.secondWeightKg == null }
-            it.copy(
+            val newState = it.copy(
                 weightRecords = updatedList,
                 isInitialLocked = hasPendingLockedRecord,
             )
+            savePreferences(newState)
+            newState
         }
     }
 
