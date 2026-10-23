@@ -34,6 +34,17 @@ val defaultCompletedExerciseIds: Set<String> = setOf(
     "p1_d1_warmup", "p1_d1_ex1", "p1_d1_ex2", "p1_d1_ex3", "p1_d1_ex4", "p1_d1_cardio",
     // Phase 1, Day 2
     "p1_d2_warmup", "p1_d2_ex1", "p1_d2_ex2", "p1_d2_ex3", "p1_d2_ex4", "p1_d2_cardio",
+    // Phase 1, Day 3
+    "p1_d3_warmup", "p1_d3_ex1", "p1_d3_ex2", "p1_d3_ex3", "p1_d3_ex4", "p1_d3_cardio",
+    // Phase 1, Day 4
+    "p1_d4_warmup", "p1_d4_ex1", "p1_d4_ex2", "p1_d4_ex3", "p1_d4_cardio",
+)
+
+val defaultDayCompletionDates: Map<String, String> = mapOf(
+    "phase_1_d1" to "10/19/2026",
+    "phase_1_d2" to "10/20/2026",
+    "phase_1_d3" to "10/21/2026",
+    "phase_1_d4" to "10/22/2026",
 )
 
 data class WeightRecord(
@@ -111,7 +122,31 @@ fun serializeSet(set: Set<String>): String = set.joinToString(",")
 
 fun deserializeSet(str: String, defaultSet: Set<String>): Set<String> {
     if (str.isBlank()) return defaultSet
-    return str.split(",").filter { it.isNotBlank() }.toSet()
+    return str.split(",").asSequence().filter { it.isNotBlank() }.toSet()
+}
+
+fun serializeMap(map: Map<String, String>): String {
+    val obj = JSONObject()
+    for ((key, value) in map) {
+        obj.put(key, value)
+    }
+    return obj.toString()
+}
+
+fun deserializeMap(jsonStr: String, defaultMap: Map<String, String>): Map<String, String> {
+    if (jsonStr.isBlank()) return defaultMap
+    return try {
+        val result = mutableMapOf<String, String>()
+        val obj = JSONObject(jsonStr)
+        val keys = obj.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            result[key] = obj.getString(key)
+        }
+        result
+    } catch (_: Exception) {
+        defaultMap
+    }
 }
 
 fun serializeRecords(records: List<WeightRecord>): String {
@@ -166,6 +201,9 @@ data class MainScreenState(
     val currentPhaseIndex: Int = 0,
     val selectedDayNumber: Int = 1,
     val completedExerciseIds: Set<String> = defaultCompletedExerciseIds,
+    val dayCompletionDates: Map<String, String> = defaultDayCompletionDates,
+    val phase1Day5Completions: Int = 0,
+    val phase2Day5Completions: Int = 0,
     val currentScreen: Screen = Screen.Dashboard,
     val activeTimerExerciseId: String? = null,
     val timerRemainingSeconds: Int = 0,
@@ -180,6 +218,12 @@ data class MainScreenState(
     val isInitialLocked: Boolean = false,
     val weightRecords: List<WeightRecord> = emptyList(),
 ) {
+    val phase1Week: Int
+        get() = (1 + phase1Day5Completions).coerceAtMost(4)
+
+    val phase2Week: Int
+        get() = (5 + phase2Day5Completions).coerceAtMost(8)
+
     val currentPhase: WorkoutPhase
         get() = phases[currentPhaseIndex]
 
@@ -215,10 +259,22 @@ class MainScreenViewModel @JvmOverloads constructor(
         val savedRecordsJson = prefs?.getString("weightRecordsJson", "") ?: ""
         val savedRecords = deserializeRecords(savedRecordsJson)
 
-        val savedCompletedJson = prefs?.getString("completedExerciseIds", null)
-        val savedCompleted = if (savedCompletedJson != null) deserializeSet(savedCompletedJson, defaultCompletedExerciseIds) else defaultCompletedExerciseIds
+        val p1d5Ids = setOf("p1_d5_warmup", "p1_d5_ex1", "p1_d5_ex2", "p1_d5_ex3", "p1_d5_ex4", "p1_d5_cardio")
 
-        return MainScreenState(
+        val rawCompletedJson = prefs?.getString("completedExerciseIds", null)
+        val rawCompleted = rawCompletedJson?.let { deserializeSet(it, defaultCompletedExerciseIds) } ?: defaultCompletedExerciseIds
+        // Explicitly unmark Day 5 exercises
+        val cleanCompleted = rawCompleted - p1d5Ids
+
+        val rawDayDatesJson = prefs?.getString("dayCompletionDates", null)
+        val rawDayDates = rawDayDatesJson?.let { deserializeMap(it, defaultDayCompletionDates) } ?: defaultDayCompletionDates
+        // Explicitly unmark Day 5 completion date
+        val cleanDayDates = rawDayDates - "phase_1_d5"
+
+        val p1Completions = prefs?.getInt("phase1Day5Completions", 0) ?: 0
+        val p2Completions = prefs?.getInt("phase2Day5Completions", 0) ?: 0
+
+        val initialState = MainScreenState(
             userWeightInput = savedWeight,
             userSecondWeightInput = savedSecondWeight,
             userHeightInput = savedHeight,
@@ -226,8 +282,16 @@ class MainScreenViewModel @JvmOverloads constructor(
             userTargetDateInput = savedTargetDate,
             isInitialLocked = savedIsLocked,
             weightRecords = savedRecords,
-            completedExerciseIds = savedCompleted,
+            completedExerciseIds = cleanCompleted,
+            dayCompletionDates = cleanDayDates,
+            phase1Day5Completions = p1Completions,
+            phase2Day5Completions = p2Completions,
         )
+
+        // Save cleaned state back to SharedPreferences
+        savePreferences(initialState)
+
+        return initialState
     }
 
     private fun savePreferences(currentState: MainScreenState) {
@@ -240,6 +304,9 @@ class MainScreenViewModel @JvmOverloads constructor(
             putBoolean("isInitialLocked", currentState.isInitialLocked)
             putString("weightRecordsJson", serializeRecords(currentState.weightRecords))
             putString("completedExerciseIds", serializeSet(currentState.completedExerciseIds))
+            putString("dayCompletionDates", serializeMap(currentState.dayCompletionDates))
+            putInt("phase1Day5Completions", currentState.phase1Day5Completions)
+            putInt("phase2Day5Completions", currentState.phase2Day5Completions)
         }
     }
 
@@ -266,14 +333,56 @@ class MainScreenViewModel @JvmOverloads constructor(
     }
 
     fun toggleExerciseCompletion(exerciseId: String) {
-        _state.update {
-            val currentCompleted = it.completedExerciseIds
+        _state.update { current ->
+            val currentCompleted = current.completedExerciseIds
             val newCompleted = if (currentCompleted.contains(exerciseId)) {
                 currentCompleted - exerciseId
             } else {
                 currentCompleted + exerciseId
             }
-            val newState = it.copy(completedExerciseIds = newCompleted)
+
+            val updatedDayDates = current.dayCompletionDates.toMutableMap()
+            var p1Completions = current.phase1Day5Completions
+            var p2Completions = current.phase2Day5Completions
+
+            current.currentPhase.days.forEach { day ->
+                val dayKey = "${current.currentPhase.id}_d${day.dayNumber}"
+                val isAllFinished = day.exercises.all { ex -> newCompleted.contains(ex.id) }
+                val wasFinished = updatedDayDates.containsKey(dayKey)
+
+                if (isAllFinished) {
+                    if (!wasFinished) {
+                        updatedDayDates[dayKey] = getCurrentDateString()
+                        // Increment week number when Day 5 is completed
+                        if (day.dayNumber == 5) {
+                            if (current.currentPhaseIndex == 0) {
+                                p1Completions += 1
+                            } else {
+                                p2Completions += 1
+                            }
+                        }
+                    }
+                } else {
+                    if (wasFinished) {
+                        updatedDayDates.remove(dayKey)
+                        // Decrement week number if Day 5 is uncompleted
+                        if (day.dayNumber == 5) {
+                            if (current.currentPhaseIndex == 0) {
+                                p1Completions = (p1Completions - 1).coerceAtLeast(0)
+                            } else {
+                                p2Completions = (p2Completions - 1).coerceAtLeast(0)
+                            }
+                        }
+                    }
+                }
+            }
+
+            val newState = current.copy(
+                completedExerciseIds = newCompleted,
+                dayCompletionDates = updatedDayDates,
+                phase1Day5Completions = p1Completions,
+                phase2Day5Completions = p2Completions,
+            )
             savePreferences(newState)
             newState
         }

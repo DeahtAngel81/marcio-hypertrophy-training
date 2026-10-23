@@ -18,6 +18,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -64,7 +66,29 @@ fun getExerciseDrawableRes(name: String): Int = when (name) {
     "lower_illustration" -> R.drawable.lower_illustration
     "warmup_illustration" -> R.drawable.warmup_illustration
     "cardio_illustration" -> R.drawable.cardio_illustration
+    "capa_treino" -> R.drawable.capa_treino
     else -> 0
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0F0F12)
+@Composable
+fun CapaTreino() {
+    val tamanhoJanela = LocalWindowInfo.current.containerSize
+    val densidade = LocalDensity.current
+
+    val alturaCapa = with(densidade) {
+        tamanhoJanela.height.toDp() / 3
+    }
+
+    Image(
+        painter = painterResource(R.drawable.capa_treino),
+        contentDescription = "Capa do aplicativo Training Muscle Ma",
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(alturaCapa)
+            .clip(RoundedCornerShape(16.dp)),
+        contentScale = ContentScale.Fit
+    )
 }
 
 @Composable
@@ -149,8 +173,12 @@ fun DashboardScreen(
             .verticalScroll(scrollState)
             .padding(16.dp),
     ) {
+        // App Cover Image
+        CapaTreino()
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // App Header
-        Spacer(modifier = Modifier.height(8.dp))
         Column {
             Text(
                 text = "TRAINING MUSCLE MA!",
@@ -229,13 +257,16 @@ fun DashboardScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            state.phases.forEachIndexed { index, phase ->
+            state.phases.forEachIndexed { index, _ ->
                 val isSelected = state.currentPhaseIndex == index
                 val borderBrush = if (isSelected) {
                     Brush.linearGradient(listOf(ThemePrimary, ThemeSecondary))
                 } else {
                     Brush.linearGradient(listOf(ThemeSurfaceVariant, ThemeSurfaceVariant))
                 }
+
+                val phaseTitle = if (index == 0) "Fase 1 (Semana ${state.phase1Week}-4)" else "Fase 2 (Semana ${state.phase2Week}-8)"
+                val phaseSubtitle = if (index == 0) "Semana ${state.phase1Week} a 4" else "Semana ${state.phase2Week} a 8"
 
                 Box(
                     modifier = Modifier
@@ -254,7 +285,7 @@ fun DashboardScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = phase.name,
+                            text = phaseTitle,
                             color = if (isSelected) ThemePrimary else ThemeTextSecondary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
@@ -262,7 +293,7 @@ fun DashboardScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (index == 0) "Semanas 1 a 4" else "Semanas 5 a 8",
+                            text = phaseSubtitle,
                             color = ThemeTextSecondary,
                             fontSize = 11.sp,
                         )
@@ -345,9 +376,11 @@ fun DashboardScreen(
                                 fontSize = 16.sp,
                             )
                             if (dayFinished) {
+                                val dayKey = "${state.currentPhase.id}_d${day.dayNumber}"
+                                val finishDate = state.dayCompletionDates[dayKey] ?: "10/19/2026"
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Concluído",
+                                    text = "Concluído $finishDate",
                                     color = ThemeDarkMagentaText,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
